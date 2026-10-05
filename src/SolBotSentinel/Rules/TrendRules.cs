@@ -20,16 +20,25 @@ public static class TrendRules
 	{
 		// An empty OpensOn is the engine saying this bot is not trading flips right now.
 		if (s.OpensOn == "") return null;
-		if (trend.Since is not { } since) return null;
-		if ((now - since).TotalMilliseconds < o.FlipGraceMs) return null;
 
 		var shouldHold = s.OpensOn == trend.Trend;
 
-		// Holding a position against the trend is wrong however it got there.
-		if (!shouldHold && s.IsOpen) return FlipNotClosed;
+		// Holding a position against the trend is wrong however it got there, and whenever the
+		// flip was. After a restart the engine reports no flip time until the next flip, and that
+		// was the blind spot on Oct 05 2026: a bot opened on the wrong side would have gone
+		// unreported. With no flip time there is no grace window, because there is nothing to
+		// count it from.
+		if (!shouldHold && s.IsOpen)
+		{
+			if (trend.Since is not { } flippedAt) return FlipNotClosed;
+			return (now - flippedAt).TotalMilliseconds < o.FlipGraceMs ? null : FlipNotClosed;
+		}
 
 		// Idle on the right side of the trend is only wrong if the bot never acted on this
-		// flip. A bot that opened and was then stopped out did its job.
+		// flip, which needs a flip time to judge. A bot that opened and was then stopped out
+		// did its job.
+		if (trend.Since is not { } since) return null;
+		if ((now - since).TotalMilliseconds < o.FlipGraceMs) return null;
 		if (shouldHold && !s.IsOpen && !ActedOn(s, since, o)) return FlipNotOpened;
 
 		return null;

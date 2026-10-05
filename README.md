@@ -63,7 +63,7 @@ It deploys to Cloud Run as one always-on instance under a service account that c
 dotnet test
 ```
 
-Thirty-six tests: the rule arithmetic at each boundary, the dwell window, the flip grace window, the raise-once store, the health of the watchers, the bearer check, the Pushover notifier, the running service read over HTTP, and the contract with the engine's feed.
+Thirty-eight tests: the rule arithmetic at each boundary, the dwell window, the flip grace window, the raise-once store, the health of the watchers, the bearer check, the Pushover notifier, the running service read over HTTP, and the contract with the engine's feed.
 
 ## Configure It
 

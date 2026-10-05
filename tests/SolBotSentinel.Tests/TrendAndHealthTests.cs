@@ -72,11 +72,28 @@ public class TrendAndHealthTests
 	}
 
 	[Fact]
-	public void A_trend_that_has_not_flipped_yet_judges_nobody()
+	public void With_no_flip_time_a_bot_open_against_the_trend_is_flagged_at_once()
+	{
+		// The Oct 05 2026 blind spot: after a restart the engine reports no flip time, and
+		// Shorty sat open in a long trend.
+		var noFlip = new TrendReading { Trend = "long", Since = null };
+		var shorty = Bot("shorty", "short", "open");
+		Assert.Equal(TrendRules.FlipNotClosed, TrendRules.Evaluate(noFlip, shorty, new WatchOptions(), Flip));
+	}
+
+	[Fact]
+	public void With_no_flip_time_an_idle_bot_is_not_judged()
 	{
 		var noFlip = new TrendReading { Trend = "short", Since = null };
-		var tallboy = Bot("tallboy", "long", "open");
-		Assert.Null(TrendRules.Evaluate(noFlip, tallboy, new WatchOptions(), Flip.AddMinutes(5)));
+		Assert.Null(TrendRules.Evaluate(noFlip, Bot("shorty", "short", "idle"), new WatchOptions(), Flip));
+		Assert.Null(TrendRules.Evaluate(noFlip, Bot("tallboy", "long", "idle"), new WatchOptions(), Flip));
+	}
+
+	[Fact]
+	public void With_no_flip_time_a_bot_open_on_the_right_side_is_fine()
+	{
+		var noFlip = new TrendReading { Trend = "long", Since = null };
+		Assert.Null(TrendRules.Evaluate(noFlip, Bot("tallboy", "long", "open"), new WatchOptions(), Flip));
 	}
 
 	[Fact]
