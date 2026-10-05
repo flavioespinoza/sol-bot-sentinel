@@ -12,6 +12,7 @@ namespace SolBotSentinel.Watchers;
 public abstract class WatcherBase(
 	IPositionSource source,
 	AlertStore alerts,
+	INotifier notifier,
 	IOptions<WatchOptions> options,
 	TimeProvider clock,
 	ILogger logger) : BackgroundService
@@ -65,6 +66,8 @@ public abstract class WatcherBase(
 		if (alerts.Raise(alert))
 		{
 			logger.LogWarning("{Watcher} {Bot} {Reason}: {Detail}", WatcherName, s.BotId, reason, detail);
+			// Raised once, so paged once. The notifier never throws.
+			_ = notifier.NotifyAsync(alert, CancellationToken.None);
 		}
 	}
 }
@@ -73,9 +76,10 @@ public abstract class WatcherBase(
 public sealed class RiskWatcher(
 	IPositionSource source,
 	AlertStore alerts,
+	INotifier notifier,
 	IOptions<WatchOptions> options,
 	TimeProvider clock,
-	ILogger<RiskWatcher> logger) : WatcherBase(source, alerts, options, clock, logger)
+	ILogger<RiskWatcher> logger) : WatcherBase(source, alerts, notifier, options, clock, logger)
 {
 	private readonly Dictionary<string, DateTimeOffset> _carryBelowSince = [];
 
@@ -109,9 +113,10 @@ public sealed class RiskWatcher(
 public sealed class ConductWatcher(
 	IPositionSource source,
 	AlertStore alerts,
+	INotifier notifier,
 	IOptions<WatchOptions> options,
 	TimeProvider clock,
-	ILogger<ConductWatcher> logger) : WatcherBase(source, alerts, options, clock, logger)
+	ILogger<ConductWatcher> logger) : WatcherBase(source, alerts, notifier, options, clock, logger)
 {
 	private static readonly string[] All =
 		[ConductRules.CapExceeded, ConductRules.LeverageExceeded, ConductRules.StaleHeartbeat];
@@ -142,9 +147,10 @@ public sealed class TrendWatcher(
 	IPositionSource source,
 	ITrendSource trendSource,
 	AlertStore alerts,
+	INotifier notifier,
 	IOptions<WatchOptions> options,
 	TimeProvider clock,
-	ILogger<TrendWatcher> logger) : WatcherBase(source, alerts, options, clock, logger)
+	ILogger<TrendWatcher> logger) : WatcherBase(source, alerts, notifier, options, clock, logger)
 {
 	private static readonly string[] All = [TrendRules.FlipNotClosed, TrendRules.FlipNotOpened];
 	private TrendReading? _trend;

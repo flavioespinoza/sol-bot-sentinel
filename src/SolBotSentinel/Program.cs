@@ -9,6 +9,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.Configure<WatchOptions>(builder.Configuration.GetSection("Watch"));
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<AlertStore>();
+builder.Services.AddSingleton<INotifier, PushoverNotifier>();
 
 // Both sources are registered and the choice is made when a watcher first asks, so the
 // Source setting can come from any configuration provider, including the environment.
@@ -32,11 +33,13 @@ var app = builder.Build();
 app.MapGet("/health", (
 	AlertStore alerts,
 	IPositionSource source,
+	INotifier notifier,
 	TimeProvider clock,
 	IOptions<WatchOptions> options) => Results.Ok(new
 {
 	status = WatcherHealth.Status(alerts.LastPoll, clock.GetUtcNow(), options.Value.PollMs),
 	source = source.Name,
+	paging = notifier.Enabled,
 	lastPoll = alerts.LastPoll,
 	activeAlerts = alerts.Active.Count,
 }));

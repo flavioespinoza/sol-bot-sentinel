@@ -63,6 +63,9 @@ public sealed class WatchOptions
 	public string FeedUrl { get; set; } = "";
 	public string FeedToken { get; set; } = "";
 	public string ApiToken { get; set; } = "";
+	public string PushoverUrl { get; set; } = "";
+	public string PushoverToken { get; set; } = "";
+	public string PushoverUser { get; set; } = "";
 	public int PollMs { get; set; } = 2000;
 	public decimal StopLossPct { get; set; } = 0.10m;
 	public decimal LtvTripThreshold { get; set; } = 0.80m;

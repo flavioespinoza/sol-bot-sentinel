@@ -26,7 +26,7 @@ Each watcher is one class and one hosted background service in the same process.
 
 The service also watches its own watchers: `/health` reports `degraded` when any one of them has stopped polling.
 
-An alert is raised once, at the first crossing, and not again until the condition clears. A read error never stops a watcher: it logs and tries again on the next tick.
+An alert is raised once, at the first crossing, and not again until the condition clears. When Pushover is configured, each new alert is also sent to a phone, once; `/health` reports `paging: true` when it is. A read error never stops a watcher: it logs and tries again on the next tick.
 
 ## Run It
 
@@ -49,17 +49,25 @@ curl http://localhost:5037/alerts/history
 
 The scripted market runs about a minute. One bot's price walks down to its stop and the risk watcher raises `price-stop`. Then the trend flips: the second bot opens over the cap and the conduct watcher raises `cap-exceeded`; the first bot never closes, and once the grace window is over the trend watcher raises `flip-not-closed`.
 
+## Deploy It
+
+```bash
+GCP_PROJECT=... FEED_URL=... FEED_TOKEN_SECRET=... API_TOKEN_SECRET=... ./scripts/deploy.sh
+```
+
+It deploys to Cloud Run as one always-on instance under a service account that can read only its own secrets, reads the feed over the private network, and finishes only when `/health` reports `ok` on the live feed. Run it again to redeploy.
+
 ## Test It
 
 ```bash
 dotnet test
 ```
 
-Thirty-three tests: the rule arithmetic at each boundary, the dwell window, the flip grace window, the raise-once store, the health of the watchers, the bearer check, the running service read over HTTP, and the contract with the engine's feed.
+Thirty-six tests: the rule arithmetic at each boundary, the dwell window, the flip grace window, the raise-once store, the health of the watchers, the bearer check, the Pushover notifier, the running service read over HTTP, and the contract with the engine's feed.
 
 ## Configure It
 
-Every threshold is in the `Watch` section of `appsettings.json` and can be overridden by environment variable, for example `Watch__PollMs=500`. No address, key, or URL is written in source. The two tokens are secrets and belong in the host's secret store, never in a file.
+Every threshold is in the `Watch` section of `appsettings.json` and can be overridden by environment variable, for example `Watch__PollMs=500`. No address or key of ours is written in source. The tokens are secrets and belong in the host's secret store, never in a file.
 
 | Setting | Default | Meaning |
 |---------|---------|---------|
@@ -75,6 +83,7 @@ Every threshold is in the `Watch` section of `appsettings.json` and can be overr
 | `PositionCapUsd` | `100` | largest deposit a bot may open with |
 | `MaxLeverage` | `3.0` | highest leverage a bot may use |
 | `HeartbeatStaleMs` | `60000` | age at which a reading counts as stale |
+| `PushoverToken`, `PushoverUser` | empty | when both are set, each new alert is pushed to a phone |
 | `FlipGraceMs` | `30000` | how long a bot has to act on a trend flip |
 | `FlipToleranceMs` | `2000` | slack when matching a bot's last action to the flip time |
 
@@ -90,8 +99,10 @@ src/SolBotSentinel/
   AlertStore.cs         raise-once alert memory
   Health.cs             the check on the watchers themselves
   ApiAuth.cs            the bearer check for the alert routes
+  Notify.cs             the Pushover notifier
 tests/SolBotSentinel.Tests/
 _docs/                  the architecture
+scripts/deploy.sh        deploy to Cloud Run
 Dockerfile
 .github/workflows/ci.yml
 ```
