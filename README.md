@@ -4,7 +4,7 @@ An independent, read-only sentinel for the Sol Bot auto-traders, written in C# o
 
 For where this sits in the whole system, read [how the security is layered](_docs/DOC__sol_bot_sentinel--architecture--security-layers.md).
 
-Proof of concept, built Oct 05 2026 with Claude Code agents. It runs against a scripted market today. Reading a live system is a matter of two settings, `SourceUrl` and `TrendUrl`; that path is written and has not been run against a live feed.
+Built Oct 05 2026 with Claude Code agents. By default it runs against a scripted market. Set `Source` to `http` and it reads the engine's read-only feed instead: one authenticated request that returns the trend and every bot. That path is covered by a contract test against real output of the engine's feed builder. It has not yet been run against the deployed engine.
 
 ## The Three Watchers
 
@@ -12,11 +12,13 @@ Each watcher is one class and one hosted background service in the same process.
 
 - **Trend watcher** -- the double-check on the trend flip. When the trend flips, the bot for the old trend must close and the bot for the new trend must open:
   - `flip-not-closed`: the old-trend bot is still open after the grace window.
-  - `flip-not-opened`: the new-trend bot is still idle after the grace window.
+  - `flip-not-opened`: the new-trend bot is still idle after the grace window and never acted on the flip. A bot that opened and was then stopped out is not flagged.
+  - A bot the engine reports as disabled, manual, or disarmed is not judged.
 - **Risk watcher** -- three exit checks on an open position:
   - `price-stop`: price at or under `entry * (1 - stopLossPct / leverage)`.
   - `ltv-guard`: debt over collateral value at or over the threshold, ahead of the lender's own liquidation line.
   - `borrow-rate`: net carry under the floor for a full dwell window, so a brief rate spike does not trip it.
+  - A reading that carries no prices is not judged on price.
 - **Conduct watcher** -- that the bot is behaving:
   - `cap-exceeded`: a position opened over the per-position cap.
   - `leverage-exceeded`: leverage over the allowed maximum.
@@ -53,17 +55,18 @@ The scripted market runs about a minute. One bot's price walks down to its stop 
 dotnet test
 ```
 
-Twenty-three tests: the rule arithmetic at each boundary, the dwell window, the flip grace window, the raise-once store, the health of the watchers, and the running service read over HTTP.
+Thirty-three tests: the rule arithmetic at each boundary, the dwell window, the flip grace window, the raise-once store, the health of the watchers, the bearer check, the running service read over HTTP, and the contract with the engine's feed.
 
 ## Configure It
 
-Every threshold is in the `Watch` section of `appsettings.json` and can be overridden by environment variable, for example `Watch__PollMs=500`. No address, key, or URL is written in source.
+Every threshold is in the `Watch` section of `appsettings.json` and can be overridden by environment variable, for example `Watch__PollMs=500`. No address, key, or URL is written in source. The two tokens are secrets and belong in the host's secret store, never in a file.
 
 | Setting | Default | Meaning |
 |---------|---------|---------|
-| `Source` | `simulated` | `simulated`, or `http` to read live |
-| `SourceUrl` | empty | where the `http` source reads a JSON array of positions |
-| `TrendUrl` | empty | where the `http` source reads the trend signal |
+| `Source` | `simulated` | `simulated`, or `http` to read the engine's feed |
+| `FeedUrl` | empty | the address of the engine's feed |
+| `FeedToken` | empty | the bearer token the engine's feed requires |
+| `ApiToken` | empty | when set, `/alerts` and `/alerts/history` require it as a bearer token |
 | `PollMs` | `2000` | how often the watchers read |
 | `StopLossPct` | `0.10` | share of the deposit that may be lost before the price stop |
 | `LtvTripThreshold` | `0.80` | loan-to-value that trips the guard |
@@ -73,6 +76,7 @@ Every threshold is in the `Watch` section of `appsettings.json` and can be overr
 | `MaxLeverage` | `3.0` | highest leverage a bot may use |
 | `HeartbeatStaleMs` | `60000` | age at which a reading counts as stale |
 | `FlipGraceMs` | `30000` | how long a bot has to act on a trend flip |
+| `FlipToleranceMs` | `2000` | slack when matching a bot's last action to the flip time |
 
 ## Layout
 
@@ -85,6 +89,7 @@ src/SolBotSentinel/
   Watchers/             the three background services
   AlertStore.cs         raise-once alert memory
   Health.cs             the check on the watchers themselves
+  ApiAuth.cs            the bearer check for the alert routes
 tests/SolBotSentinel.Tests/
 _docs/                  the architecture
 Dockerfile

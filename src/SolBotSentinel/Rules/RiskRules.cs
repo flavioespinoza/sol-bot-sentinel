@@ -45,6 +45,9 @@ public static class RiskRules
 	{
 		if (!s.IsOpen) return null;
 
+		// A feed that carries no prices cannot be judged on price. Say nothing rather than guess.
+		if (s.EntryPrice <= 0 || s.Price <= 0) return null;
+
 		if (s.Price <= StopLossPrice(s.EntryPrice, o.StopLossPct, s.Leverage)) return PriceStop;
 
 		var ltv = Ltv(s);

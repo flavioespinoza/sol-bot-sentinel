@@ -49,6 +49,47 @@ public class TrendAndHealthTests
 	}
 
 	[Fact]
+	public void A_bot_that_opened_on_the_flip_and_was_stopped_out_is_not_flagged()
+	{
+		var shorty = Bot("shorty", "short", "idle") with { LastFlipTime = Flip };
+		Assert.Null(TrendRules.Evaluate(Short, shorty, new WatchOptions(), Flip.AddMinutes(5)));
+	}
+
+	[Fact]
+	public void A_bot_whose_last_action_was_an_earlier_flip_is_flagged()
+	{
+		var shorty = Bot("shorty", "short", "idle") with { LastFlipTime = Flip.AddHours(-4) };
+		Assert.Equal(
+			TrendRules.FlipNotOpened,
+			TrendRules.Evaluate(Short, shorty, new WatchOptions(), Flip.AddMinutes(5)));
+	}
+
+	[Fact]
+	public void A_bot_the_engine_is_not_trading_is_never_judged()
+	{
+		var manual = Bot("tallboy", "", "open");
+		Assert.Null(TrendRules.Evaluate(Short, manual, new WatchOptions(), Flip.AddMinutes(5)));
+	}
+
+	[Fact]
+	public void A_trend_that_has_not_flipped_yet_judges_nobody()
+	{
+		var noFlip = new TrendReading { Trend = "short", Since = null };
+		var tallboy = Bot("tallboy", "long", "open");
+		Assert.Null(TrendRules.Evaluate(noFlip, tallboy, new WatchOptions(), Flip.AddMinutes(5)));
+	}
+
+	[Fact]
+	public void The_alert_routes_are_open_without_a_token_and_closed_with_one()
+	{
+		Assert.True(ApiAuth.Allowed("", ""));
+		Assert.True(ApiAuth.Allowed("Bearer right", "right"));
+		Assert.False(ApiAuth.Allowed("Bearer wrong", "right"));
+		Assert.False(ApiAuth.Allowed("right", "right"));
+		Assert.False(ApiAuth.Allowed("", "right"));
+	}
+
+	[Fact]
 	public void Health_is_starting_until_every_watcher_has_polled()
 	{
 		var polled = new Dictionary<string, DateTimeOffset> { ["risk"] = Flip, ["conduct"] = Flip };

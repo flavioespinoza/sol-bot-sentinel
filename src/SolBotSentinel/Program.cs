@@ -10,18 +10,17 @@ builder.Services.Configure<WatchOptions>(builder.Configuration.GetSection("Watch
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<AlertStore>();
 
-var watch = builder.Configuration.GetSection("Watch").Get<WatchOptions>() ?? new WatchOptions();
-if (watch.Source == "http")
-{
-	builder.Services.AddHttpClient<IPositionSource, HttpPositionSource>();
-	builder.Services.AddHttpClient<ITrendSource, HttpTrendSource>();
-}
-else
-{
-	builder.Services.AddSingleton<SimulatedMarket>();
-	builder.Services.AddSingleton<IPositionSource>(sp => sp.GetRequiredService<SimulatedMarket>());
-	builder.Services.AddSingleton<ITrendSource>(sp => sp.GetRequiredService<SimulatedMarket>());
-}
+// Both sources are registered and the choice is made when a watcher first asks, so the
+// Source setting can come from any configuration provider, including the environment.
+builder.Services.AddHttpClient();
+builder.Services.AddSingleton<HttpFeed>();
+builder.Services.AddSingleton<SimulatedMarket>();
+builder.Services.AddSingleton<IPositionSource>(sp => UseHttp(sp)
+	? sp.GetRequiredService<HttpFeed>()
+	: sp.GetRequiredService<SimulatedMarket>());
+builder.Services.AddSingleton<ITrendSource>(sp => UseHttp(sp)
+	? sp.GetRequiredService<HttpFeed>()
+	: sp.GetRequiredService<SimulatedMarket>());
 
 // Each watcher is one class and one line here. A new watcher is added the same way.
 builder.Services.AddHostedService<RiskWatcher>();
@@ -42,9 +41,20 @@ app.MapGet("/health", (
 	activeAlerts = alerts.Active.Count,
 }));
 
-app.MapGet("/alerts", (AlertStore alerts) => Results.Ok(alerts.Active));
-app.MapGet("/alerts/history", (AlertStore alerts) => Results.Ok(alerts.History));
+// An alert says which way the trend went, so when a token is configured the alerts need it.
+var alertRoutes = app.MapGroup("/alerts").AddEndpointFilter(async (context, next) =>
+{
+	var expected = context.HttpContext.RequestServices
+		.GetRequiredService<IOptions<WatchOptions>>().Value.ApiToken;
+	var header = context.HttpContext.Request.Headers.Authorization.ToString();
+	return ApiAuth.Allowed(header, expected) ? await next(context) : Results.Unauthorized();
+});
+alertRoutes.MapGet("", (AlertStore alerts) => Results.Ok(alerts.Active));
+alertRoutes.MapGet("/history", (AlertStore alerts) => Results.Ok(alerts.History));
 
 app.Run();
+
+static bool UseHttp(IServiceProvider sp) =>
+	sp.GetRequiredService<IOptions<WatchOptions>>().Value.Source == "http";
 
 public partial class Program;

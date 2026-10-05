@@ -1,6 +1,6 @@
 # DOC: Sol Bot -- How The Security Is Layered
 
-v1 | Oct 05 2026 - 02:02 PM (MDT)
+v2 | Oct 05 2026 - 02:49 PM (MDT)
 
 **Status:** Draft. A layer is marked Running only where it was confirmed in the code. Everything else is marked Designed, even where part of it exists.
 
@@ -28,7 +28,7 @@ No single layer is trusted. Each one assumes the layer inside it has already fai
 | Position cap | A bot opening more than it is allowed to | Running |
 | Risk watcher | An open position riding through a stop, a liquidation line, or a borrow-rate spike | Running |
 | Liveness | A silent engine or a silent watcher going unnoticed | Running |
-| Flip double-check | The trend flipping and a bot not acting on it | Proof of concept, this repo |
+| Flip double-check | The trend flipping and a bot not acting on it | Built, this repo; not yet deployed |
 | Protocol guardian | A takeover of the lending protocol's own governance | Designed |
 
 ## Key Custody
@@ -69,9 +69,9 @@ The engine and the watcher write heartbeats and watch each other for silence. A 
 
 The one failure the layers above do not catch is the quiet one: the trend flips and a bot does not act. Nothing is down, nothing is over a line, and the position is simply wrong.
 
-This repository is the proof of concept for that check, written in C# on ASP.NET Core. It reads the trend and each bot's state, gives the bots a grace window after a flip, and then raises an alert for a bot that should have closed and did not, or should have opened and did not. It only reads. It cannot place, change, or close a trade.
+This repository is that check, written in C# on ASP.NET Core. It reads the trend and each bot's state, gives the bots a grace window after a flip, and then raises an alert for a bot that should have closed and did not, or should have opened and did not. It only reads. It cannot place, change, or close a trade.
 
-It runs against a scripted market today. Reading the live system needs a read-only feed that the engine does not expose yet.
+It reads a read-only, bearer-protected feed that the engine serves for this purpose. The feed carries the trend and each bot's state and nothing that could move money.
 
 ## Protocol Guardian
 
@@ -90,3 +90,4 @@ The trading signal, the strategy, addresses, organization and policy identifiers
 | Date | Version | Change |
 |------|---------|--------|
 | Oct 05 2026 | v1 | First draft. |
+| Oct 05 2026 | v2 | The flip double-check reads the engine's feed; status changed from proof of concept to built, not yet deployed. |

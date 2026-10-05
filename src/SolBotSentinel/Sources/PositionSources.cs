@@ -11,31 +11,59 @@ public interface IPositionSource
 	Task<IReadOnlyList<PositionSnapshot>> ReadAsync(CancellationToken ct);
 }
 
-/// <summary>Where the trend watcher gets the trend signal. Read only, by design.</summary>
+/// <summary>Where the trend watcher gets the trend signal. Null when there is none yet.</summary>
 public interface ITrendSource
 {
-	Task<TrendReading> ReadAsync(CancellationToken ct);
+	Task<TrendReading?> ReadAsync(CancellationToken ct);
 }
 
-/// <summary>Reads a JSON array of snapshots from the bot host. The address is configuration.</summary>
-public sealed class HttpPositionSource(HttpClient http, IOptions<WatchOptions> options) : IPositionSource
+/// <summary>
+/// Reads the engine's read-only feed: one authenticated GET that returns the trend and every
+/// bot. All three watchers share one read per poll, so the engine is asked once, not six times.
+/// The address and the token are configuration; neither is written here.
+/// </summary>
+public sealed class HttpFeed(
+	IHttpClientFactory clients,
+	IOptions<WatchOptions> options,
+	TimeProvider clock) : IPositionSource, ITrendSource
 {
+	private readonly SemaphoreSlim _gate = new(1, 1);
+	private EngineFeed? _last;
+	private DateTimeOffset _lastAt;
+
 	public string Name => "http";
 
-	public async Task<IReadOnlyList<PositionSnapshot>> ReadAsync(CancellationToken ct)
-	{
-		var list = await http.GetFromJsonAsync<List<PositionSnapshot>>(options.Value.SourceUrl, ct);
-		return list ?? [];
-	}
-}
+	async Task<IReadOnlyList<PositionSnapshot>> IPositionSource.ReadAsync(CancellationToken ct) =>
+		(await ReadFeedAsync(ct)).Positions;
 
-/// <summary>Reads the trend signal as JSON. The address is configuration.</summary>
-public sealed class HttpTrendSource(HttpClient http, IOptions<WatchOptions> options) : ITrendSource
-{
-	public async Task<TrendReading> ReadAsync(CancellationToken ct)
+	async Task<TrendReading?> ITrendSource.ReadAsync(CancellationToken ct) =>
+		(await ReadFeedAsync(ct)).Trend;
+
+	private async Task<EngineFeed> ReadFeedAsync(CancellationToken ct)
 	{
-		var reading = await http.GetFromJsonAsync<TrendReading>(options.Value.TrendUrl, ct);
-		return reading ?? throw new InvalidOperationException("The trend source returned nothing.");
+		await _gate.WaitAsync(ct);
+		try
+		{
+			var now = clock.GetUtcNow();
+			var freshMs = Math.Max(1, options.Value.PollMs) / 2;
+			if (_last is not null && (now - _lastAt).TotalMilliseconds < freshMs) return _last;
+
+			using var request = new HttpRequestMessage(HttpMethod.Get, options.Value.FeedUrl);
+			if (options.Value.FeedToken != "")
+			{
+				request.Headers.Authorization = new("Bearer", options.Value.FeedToken);
+			}
+			using var response = await clients.CreateClient().SendAsync(request, ct);
+			response.EnsureSuccessStatusCode();
+			_last = await response.Content.ReadFromJsonAsync<EngineFeed>(ct)
+				?? throw new InvalidOperationException("The engine feed returned nothing.");
+			_lastAt = now;
+			return _last;
+		}
+		finally
+		{
+			_gate.Release();
+		}
 	}
 }
 
@@ -58,10 +86,10 @@ public sealed class SimulatedMarket(TimeProvider clock, IOptions<WatchOptions> o
 
 	private int Step(DateTimeOffset now) => (int)((now - _start).TotalMilliseconds / PollMs);
 
-	Task<TrendReading> ITrendSource.ReadAsync(CancellationToken ct)
+	Task<TrendReading?> ITrendSource.ReadAsync(CancellationToken ct)
 	{
 		var flipped = Step(clock.GetUtcNow()) >= FlipStep;
-		return Task.FromResult(new TrendReading
+		return Task.FromResult<TrendReading?>(new TrendReading
 		{
 			Trend = flipped ? "short" : "long",
 			Since = flipped ? _start.AddMilliseconds((double)FlipStep * PollMs) : _start,

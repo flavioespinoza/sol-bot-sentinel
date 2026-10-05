@@ -167,6 +167,7 @@ public sealed class TrendWatcher(
 		}
 		if (reason is null) return;
 
-		Raise(s, reason, $"trend {_trend.Trend} since {_trend.Since:HH:mm:ss} UTC, {s.BotId} is {s.Status}");
+		var state = s.State == "" ? s.Status : s.State;
+		Raise(s, reason, $"trend {_trend.Trend} since {_trend.Since:u}, {s.BotId} is {state}");
 	}
 }

@@ -89,6 +89,13 @@ public class RulesTests
 	}
 
 	[Fact]
+	public void A_reading_without_prices_trips_nothing()
+	{
+		var noPrices = Open() with { EntryPrice = 0, Price = 0, CollateralUnits = 0, DebtUsd = 0 };
+		Assert.Null(RiskRules.Evaluate(noPrices, new WatchOptions(), null));
+	}
+
+	[Fact]
 	public void Idle_bot_trips_nothing()
 	{
 		var idle = Open(price: 1m) with { Status = "idle" };

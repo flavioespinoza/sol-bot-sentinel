@@ -23,4 +23,8 @@
     <ProjectReference Include="..\..\src\SolBotSentinel\SolBotSentinel.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="engine-feed.fixture.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

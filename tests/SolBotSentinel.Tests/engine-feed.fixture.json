@@ -1,0 +1,56 @@
+{
+	"trend": {
+		"trend": "short",
+		"since": "2026-10-05T12:00:00.000Z",
+		"source": "live",
+		"updatedAt": "2026-10-05T12:01:00.000Z"
+	},
+	"positions": [
+		{
+			"botId": "tallboy:AAAAAA",
+			"botType": "tallboy",
+			"state": "OPEN",
+			"status": "open",
+			"opensOn": "long",
+			"depositUsd": 100,
+			"leverage": 2,
+			"lastFlipTime": "2026-10-05T08:00:00.000Z",
+			"at": "2026-10-05T12:01:00.000Z"
+		},
+		{
+			"botId": "shorty:BBBBBB",
+			"botType": "shorty",
+			"state": "ERROR",
+			"status": "idle",
+			"opensOn": "short",
+			"depositUsd": 100,
+			"leverage": 2,
+			"lastFlipTime": null,
+			"at": "2026-10-05T12:01:00.000Z"
+		},
+		{
+			"botId": "shorty:CCCCCC",
+			"botType": "shorty",
+			"state": "IDLE",
+			"status": "idle",
+			"opensOn": "short",
+			"depositUsd": 100,
+			"leverage": 2,
+			"lastFlipTime": "2026-10-05T12:00:00.000Z",
+			"at": "2026-10-05T12:01:00.000Z"
+		},
+		{
+			"botId": "tallboy:DDDDDD",
+			"botType": "tallboy",
+			"state": "IDLE",
+			"status": "idle",
+			"opensOn": "",
+			"depositUsd": 100,
+			"leverage": 2,
+			"lastFlipTime": null,
+			"at": "2026-10-05T12:01:00.000Z"
+		}
+	],
+	"armed": true,
+	"at": "2026-10-05T12:01:00.000Z"
+}
