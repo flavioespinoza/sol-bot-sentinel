@@ -1,0 +1,7 @@
+bin/
+obj/
+_tmp/
+.env.local
+*.user
+.vs/
+TestResults/
