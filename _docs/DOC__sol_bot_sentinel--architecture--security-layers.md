@@ -1,6 +1,6 @@
 # DOC: Sol Bot -- How The Security Is Layered
 
-v2 | Oct 05 2026 - 02:49 PM (MDT)
+v3 | Oct 05 2026 - 04:29 PM (MDT)
 
 **Status:** Draft. A layer is marked Running only where it was confirmed in the code. Everything else is marked Designed, even where part of it exists.
 
@@ -28,7 +28,7 @@ No single layer is trusted. Each one assumes the layer inside it has already fai
 | Position cap | A bot opening more than it is allowed to | Running |
 | Risk watcher | An open position riding through a stop, a liquidation line, or a borrow-rate spike | Running |
 | Liveness | A silent engine or a silent watcher going unnoticed | Running |
-| Flip double-check | The trend flipping and a bot not acting on it | Built, this repo; not yet deployed |
+| Flip double-check | The trend flipping and a bot not acting on it | Running, this repo, since Oct 05 2026 |
 | Protocol guardian | A takeover of the lending protocol's own governance | Designed |
 
 ## Key Custody
@@ -71,7 +71,7 @@ The one failure the layers above do not catch is the quiet one: the trend flips 
 
 This repository is that check, written in C# on ASP.NET Core. It reads the trend and each bot's state, gives the bots a grace window after a flip, and then raises an alert for a bot that should have closed and did not, or should have opened and did not. It only reads. It cannot place, change, or close a trade.
 
-It reads a read-only, bearer-protected feed that the engine serves for this purpose. The feed carries the trend and each bot's state and nothing that could move money.
+It reads a read-only, bearer-protected feed that the engine serves for this purpose, over the private network, from its own always-on instance in the same project. The feed carries the trend and each bot's state and nothing that could move money. On its first day it caught the restart bug described in the next paragraph, before it was even deployed: a restart replayed months-old trend flips to two new bots, and both traded. The engine now gives every bot an origin date and ignores any flip from before it.
 
 ## Protocol Guardian
 
@@ -91,3 +91,4 @@ The trading signal, the strategy, addresses, organization and policy identifiers
 |------|---------|--------|
 | Oct 05 2026 | v1 | First draft. |
 | Oct 05 2026 | v2 | The flip double-check reads the engine's feed; status changed from proof of concept to built, not yet deployed. |
+| Oct 05 2026 | v3 | Deployed; the restart bug it exposed and the engine's origin-date fix recorded. |

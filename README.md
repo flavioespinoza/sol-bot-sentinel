@@ -4,7 +4,7 @@ An independent, read-only sentinel for the Sol Bot auto-traders, written in C# o
 
 For where this sits in the whole system, read [how the security is layered](_docs/DOC__sol_bot_sentinel--architecture--security-layers.md).
 
-Built Oct 05 2026 with Claude Code agents. By default it runs against a scripted market. Set `Source` to `http` and it reads the engine's read-only feed instead: one authenticated request that returns the trend and every bot. That path is covered by a contract test against real output of the engine's feed builder. It has not yet been run against the deployed engine.
+Built Oct 05 2026 with Claude Code agents and deployed the same day: it runs on Cloud Run as one always-on instance and reads the production engine's feed over the private network, every 15 seconds, since 4:28 PM (MDT) on Oct 05 2026. By default a fresh checkout runs against a scripted market; `Source` set to `http` is the deployed configuration. Paging is not wired yet: alerts are logged and served until a Pushover token is provided.
 
 ## The Three Watchers
 
